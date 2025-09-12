@@ -29,56 +29,58 @@ def requisicao_com_retry(url, retries=3, delay=2):
             if r.status_code == 200:
                 return r.json()
             elif r.status_code == 429:
-                print("Rate limit atingido, aguardando...")
+                print("Rate limite atingido, aguardando...")
                 time.sleep(delay)
             else:
                 print(f"Erro na API: {r.status_code}")
         except requests.Timeout:
-            print("Timeout, tentando novamente...")
+            print("Tentando novamente...")
             time.sleep(delay)
         except requests.RequestException as e:
-            print(f"Erro na requisição: {e}")
+            print(f"Error: {e}")
             time.sleep(delay)
     return None
 
-def importar_acoes(lista_acoes):
+#importação ações
+def importar_acoes(acoes):
     total_importadas = 0
-    for i in range(0, len(lista_acoes), 16):
-        lote = lista_acoes[i:i+16]
-        codigos = ",".join(lote)
-        url = f"https://brapi.dev/api/quote/{codigos}?token={db.token}"
+    for codigo in acoes:
+        url = f"https://brapi.dev/api/quote/{codigo}?token={db.token}"
+        
+        print(f"🔗 Requisitando: {url}") 
+        
         r = requisicao_com_retry(url)
-        if not r or "results" not in r:
-            print("Nenhum resultado retornado da BRAPI.")
+        if not r or "results" not in r or len(r["results"]) == 0:
+            print(f"❌ Nenhum resultado retornado da BRAPI para {codigo}")
             continue
-        print(f"🔎 BRAPI retornou {len(r['results'])} ativos para o lote {lote}")
-        for acao in r["results"]:
-            dados = (
-                acao["symbol"],
-                acao.get("longName", acao["symbol"]),
-                "ACAO",
-                "B3",
-                "BRL",
-                acao.get("regularMarketPrice"),
-                acao.get("regularMarketChangePercent"),
-                None,
-                acao.get("dividendYield"),
-                None,
-                acao.get("regularMarketVolume"),
-                None,
-                acao.get("longName", acao["symbol"]),
-                None,
-                None,
-                datetime.now()
-            )
-            salvar_investimento(dados)
-            total_importadas += 1
-        time.sleep(1) 
+
+        acao = r["results"][0]
+        dados = (
+            acao["symbol"],
+            acao.get("longName", acao["symbol"]),
+            "ACAO",
+            "B3",
+            "BRL",
+            acao.get("regularMarketPrice"),
+            acao.get("regularMarketChangePercent"),
+            None,
+            acao.get("dividendYield"),
+            None,
+            acao.get("regularMarketVolume"),
+            None,
+            acao.get("longName", acao["symbol"]),
+            None,
+            None,
+            datetime.now()
+        )
+        salvar_investimento(dados)
+        total_importadas += 1
+
+        time.sleep(1)
     return total_importadas
 
 
-
-
+#importação cripto
 def importar_cripto(symbol):
     url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
     r = requisicao_com_retry(url)
@@ -114,7 +116,6 @@ acoes = ["PETR4","VALE3","ITUB4","BBDC4","ABEV3","BBAS3","WEGE3","MGLU3",
 criptos = ["BTCBRL","ETHBRL","LTCBRL","SOLBRL","ADABRL","BNBBRL",
            "XRPBRL","DOGEBRL","MATICBRL","DOTBRL","AVAXBRL","SHIBBRL"]
 
-# Executando importação
 total_acoes = importar_acoes(acoes)
 print(f"Total de ações importadas: {total_acoes}")
 
